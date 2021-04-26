@@ -25,6 +25,7 @@ directions = {"right": 0,
               "left": 1,
               "up": 2,
               "down": 3}
+game_speed = 0.5
 
 #   snake
 snake_starting_length = 3
@@ -34,31 +35,30 @@ snake_starting_length = 3
 board_data = []
 
 #   metrics
+game_over = False
 
 #   snake
 snake_position = [{"x": 0, "y": 0}]
 snake_direction = directions["left"]
+snake_last_direction = snake_direction
 
 
 def main():
     window = init()
 
-    game_over = False
     time_last_update = time.time()
     time_game_start = time_last_update
 
     total_updates = 0
     while not game_over:
-        time_to_next_update = time_last_update - time_game_start - total_updates
-        print(time_to_next_update)
+        time_to_next_update = time_last_update - time_game_start - total_updates * game_speed
+        event_handling()
         if time_to_next_update >= 0:
             game_update()
             total_updates += 1
+            log_grid()
         draw(window)
         pygame.display.update()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                game_over = True
         time_last_update = time.time()
 
     pygame.quit()
@@ -76,10 +76,31 @@ def init_window():
 
 
 def init_game():
+    init_snake()
     init_board()
 
 
 def init_board():
+    board_width = board_size["width"]
+    board_height = board_size["height"]
+
+    # set positions of elements like, walls, the snake and the food
+    for x in range(board_width):
+        tile_data = []
+        board_data.append(tile_data)
+        for y in range(board_height):
+            # Wände
+            if x % (board_width - 1) is 0 or y % (board_height - 1) is 0:
+                tile_data.append(field_types["WALL"])
+            else:
+                # Boden
+                tile_data.append(0)
+
+    # Snake
+    add_snake_to_board()
+
+
+def init_snake():
     board_width = board_size["width"]
     board_height = board_size["height"]
 
@@ -91,29 +112,6 @@ def init_board():
 
     for i in range(snake_starting_length):
         snake_position.append({"x": snake_head_position_x + i + 1, "y": snake_head_position_y})
-
-    # calculate start_positions
-
-    # set positions of elements like, walls, the snake and the food
-    for x in range(board_width):
-        tile_data = []
-        board_data.append(tile_data)
-        for y in range(board_height):
-            # Wände
-            if x % (board_width - 1) is 0 or y % (board_height - 1) is 0:
-                tile_data.append(field_types["WALL"])
-            # Kopf
-            # elif x is snake_head_position_x and y is snake_head_position_y:
-            #     tile_data.append(field_types["HEAD"])
-            else:
-                # Boden
-                tile_data.append(0)
-
-    add_snake_to_board()
-    # Schwanz
-    # for i in range(1, len(snake_position)):
-    #     body_part = snake_position[i]
-    #     board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
 
 
 def which_body_part_is_overlapping(position: (int, int)):
@@ -151,15 +149,17 @@ def game_update():
 
 def snake_move():
     clear_snake_from_board()
+    global snake_last_direction
 
     if snake_direction == directions["left"]:
-        snake_move_to((snake_position[0]["x"] - 1, snake_position[1]["y"]))
+        snake_move_to((snake_position[0]["x"] - 1, snake_position[0]["y"]))
     elif snake_direction == directions["right"]:
-        snake_move_to((snake_position[0]["x"] + 1, snake_position[1]["y"]))
+        snake_move_to((snake_position[0]["x"] + 1, snake_position[0]["y"]))
     elif snake_direction == directions["up"]:
-        snake_move_to((snake_position[0]["x"], snake_position[1]["y"] - 1))
+        snake_move_to((snake_position[0]["x"], snake_position[0]["y"] - 1))
     elif snake_direction == directions["down"]:
-        snake_move_to((snake_position[0]["x"], snake_position[1]["y"] + 1))
+        snake_move_to((snake_position[0]["x"], snake_position[0]["y"] + 1))
+    snake_last_direction = snake_direction
 
     add_snake_to_board()
 
@@ -182,6 +182,28 @@ def add_snake_to_board():
             board_data[body_part["x"]][body_part["y"]] = field_types["HEAD"]
         else:
             board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
+
+
+def event_handling():
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            global game_over
+            game_over = True
+        if event.type == pygame.KEYUP:
+            global snake_direction
+            if event.key == pygame.K_a and snake_last_direction is not directions["right"]:
+                snake_direction = directions["left"]
+            elif event.key == pygame.K_d and snake_last_direction is not directions["left"]:
+                snake_direction = directions["right"]
+            elif event.key == pygame.K_w and snake_last_direction is not directions["down"]:
+                snake_direction = directions["up"]
+            elif event.key == pygame.K_s and snake_last_direction is not directions["up"]:
+                snake_direction = directions["down"]
+
+
+def log_grid():
+    for row in enumerate(board_data):
+        print(row)
 
 
 main()
