@@ -38,6 +38,7 @@ board_data = []
 
 #   metrics
 game_over = False
+end_game = False
 food_was_eaten = True
 
 #   snake
@@ -49,20 +50,26 @@ snake_last_direction = snake_direction
 def main():
     window = init()
 
-    time_last_update = time.time()
-    time_game_start = time_last_update
-
+    time_last_update = 0
+    time_game_start = 0
     total_updates = 0
-    while not game_over:
-        time_to_next_update = time_last_update - time_game_start - total_updates * game_speed
-        event_handling()
-        if time_to_next_update >= 0:
-            game_update()
-            total_updates += 1
-            log_grid()
-        draw(window)
-        pygame.display.update()
-        time_last_update = time.time()
+
+    while not end_game:
+        if not game_over:
+            time_last_update = time.time()
+            time_game_start = time_last_update
+            total_updates = 0
+        while not game_over:
+            time_to_next_update = time_last_update - time_game_start - total_updates * game_speed
+            game_event_handling()
+            if time_to_next_update >= 0:
+                game_update()
+                total_updates += 1
+                log_grid()
+            draw(window)
+            pygame.display.update()
+            time_last_update = time.time()
+        menu_event_handling()
 
     pygame.quit()
     quit()
@@ -133,17 +140,17 @@ def init_snake():
         snake_position.append({"x": snake_head_position_x + i + 1, "y": snake_head_position_y})
 
 
-def which_body_part_is_overlapping(position: (int, int)):
-    for body_part_position in snake_position:
-        if position is body_part_position["x"] and position is body_part_position["y"]:
-            return position
-    return -1, -1
-
-
-def is_position_overlapping_with_snake(position: (int, int)):
-    if which_body_part_is_overlapping(position)[0] is not -1:
-        return True
-    return False
+# def which_body_part_is_overlapping(position: (int, int)):
+#     for body_part_position in snake_position:
+#         if position is body_part_position["x"] and position is body_part_position["y"]:
+#             return position
+#     return -1, -1
+#
+#
+# def is_position_overlapping_with_snake(position: (int, int)):
+#     if which_body_part_is_overlapping(position)[0] is not -1:
+#         return True
+#     return False
 
 
 def draw(window):
@@ -173,7 +180,6 @@ def game_update():
 def snake_update():
     clear_snake_from_board()
     global snake_last_direction
-
     snake_head = snake_position[0]
 
     if snake_direction == directions["left"]:
@@ -188,6 +194,11 @@ def snake_update():
 
     add_snake_to_board()
 
+    snake_head = snake_position[0]
+    if board_data[snake_head["x"]][snake_head["y"]] == tile_types["TAIL"]:
+        global game_over
+        game_over = True
+
 
 def snake_check_tile(tile: (int, int)):
     tile_type = board_data[tile[0]][tile[1]]
@@ -195,8 +206,9 @@ def snake_check_tile(tile: (int, int)):
         snake_eat(tile)
     elif tile_type is tile_types["GROUND"]:
         snake_move(tile)
-    elif tile_type >= tile_types["TAIL"]:
-        init_game()
+    elif tile_type == tile_types["WALL"]:
+        global game_over
+        game_over = True
 
 
 def snake_move(tile: (int, int)):
@@ -219,12 +231,14 @@ def add_snake_to_board():
             board_data[body_part["x"]][body_part["y"]] = tile_types["TAIL"]
 
 
-def event_handling():
+def game_event_handling():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global game_over
+            global end_game
             game_over = True
-        if event.type == pygame.KEYUP:
+            end_game = True
+        if event.type == pygame.KEYDOWN:
             global snake_direction
             if event.key == pygame.K_a and snake_last_direction is not directions["right"]:
                 snake_direction = directions["left"]
@@ -234,6 +248,18 @@ def event_handling():
                 snake_direction = directions["up"]
             elif event.key == pygame.K_s and snake_last_direction is not directions["up"]:
                 snake_direction = directions["down"]
+
+
+def menu_event_handling():
+    for event in pygame.event.get():
+        global game_over
+        global end_game
+        if event.type == pygame.QUIT:
+            game_over = True
+            end_game = True
+        elif event.type == pygame.KEYUP:
+            game_over = False
+            init_game()
 
 
 def log_grid():
