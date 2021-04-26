@@ -1,4 +1,5 @@
 import pygame
+import time
 
 # Settings
 #   window
@@ -9,6 +10,7 @@ pixel_size = 10
 red = (255, 0, 0)
 lime = (75, 100, 0)
 white = (255, 255, 255)
+black = (0, 0, 0)
 
 #   board
 board_size = {"width": 20, "height": 20}
@@ -19,6 +21,10 @@ field_types = {"WALL": 4,
                "FOOD": 1,
                "HEAD": 2,
                "TAIL": 3}
+directions = {"right": 0,
+              "left": 1,
+              "up": 2,
+              "down": 3}
 
 #   snake
 snake_starting_length = 3
@@ -28,23 +34,32 @@ snake_starting_length = 3
 board_data = []
 
 #   metrics
-directions = ("right", "left", "up", "down")
 
 #   snake
 snake_position = [{"x": 0, "y": 0}]
-head_direction = directions[0]
+snake_direction = directions["left"]
 
 
 def main():
     window = init()
 
     game_over = False
+    time_last_update = time.time()
+    time_game_start = time_last_update
+
+    total_updates = 0
     while not game_over:
+        time_to_next_update = time_last_update - time_game_start - total_updates
+        print(time_to_next_update)
+        if time_to_next_update >= 0:
+            game_update()
+            total_updates += 1
         draw(window)
         pygame.display.update()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_over = True
+        time_last_update = time.time()
 
     pygame.quit()
     quit()
@@ -88,16 +103,17 @@ def init_board():
             if x % (board_width - 1) is 0 or y % (board_height - 1) is 0:
                 tile_data.append(field_types["WALL"])
             # Kopf
-            elif x is snake_head_position_x and y is snake_head_position_y:
-                tile_data.append(field_types["HEAD"])
+            # elif x is snake_head_position_x and y is snake_head_position_y:
+            #     tile_data.append(field_types["HEAD"])
             else:
                 # Boden
                 tile_data.append(0)
 
+    add_snake_to_board()
     # Schwanz
-    for i in range(1, len(snake_position)):
-        body_part = snake_position[i]
-        board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
+    # for i in range(1, len(snake_position)):
+    #     body_part = snake_position[i]
+    #     board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
 
 
 def which_body_part_is_overlapping(position: (int, int)):
@@ -114,6 +130,7 @@ def is_position_overlapping_with_snake(position: (int, int)):
 
 
 def draw(window):
+    pygame.draw.rect(window, black, [0, 0, board_size["width"] * pixel_size, board_size["height"] * pixel_size])
     for x, row in enumerate(board_data):
         for y, tile in enumerate(row):
             color = "NONE"
@@ -126,6 +143,45 @@ def draw(window):
 
             if color != "NONE":
                 pygame.draw.rect(window, color, [x * pixel_size, y * pixel_size, pixel_size, pixel_size])
+
+
+def game_update():
+    snake_move()
+
+
+def snake_move():
+    clear_snake_from_board()
+
+    if snake_direction == directions["left"]:
+        snake_move_to((snake_position[0]["x"] - 1, snake_position[1]["y"]))
+    elif snake_direction == directions["right"]:
+        snake_move_to((snake_position[0]["x"] + 1, snake_position[1]["y"]))
+    elif snake_direction == directions["up"]:
+        snake_move_to((snake_position[0]["x"], snake_position[1]["y"] - 1))
+    elif snake_direction == directions["down"]:
+        snake_move_to((snake_position[0]["x"], snake_position[1]["y"] + 1))
+
+    add_snake_to_board()
+
+
+def snake_move_to(tile: (int, int)):
+    last_element = len(snake_position) - 1
+    snake_position[last_element] = {"x": tile[0], "y": tile[1]}
+    snake_position.insert(0, snake_position.pop(last_element))
+
+
+def clear_snake_from_board():
+    for body_part in snake_position:
+        board_data[body_part["x"]][body_part["y"]] = 0
+
+
+def add_snake_to_board():
+    for i in range(len(snake_position)):
+        body_part = snake_position[i]
+        if i is 0:
+            board_data[body_part["x"]][body_part["y"]] = field_types["HEAD"]
+        else:
+            board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
 
 
 main()
