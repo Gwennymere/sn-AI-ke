@@ -1,5 +1,6 @@
 import pygame
 import time
+import random
 
 # Settings
 #   window
@@ -8,6 +9,7 @@ pixel_size = 10
 
 #   colors
 red = (255, 0, 0)
+orange = (255, 165, 0)
 lime = (75, 100, 0)
 white = (255, 255, 255)
 black = (0, 0, 0)
@@ -16,16 +18,16 @@ black = (0, 0, 0)
 board_size = {"width": 20, "height": 20}
 
 #   game
-field_types = {"WALL": 4,
-               "GROUND": 0,
-               "FOOD": 1,
-               "HEAD": 2,
-               "TAIL": 3}
+tile_types = {"WALL": 4,
+              "GROUND": 0,
+              "FOOD": 1,
+              "HEAD": 2,
+              "TAIL": 3}
 directions = {"right": 0,
               "left": 1,
               "up": 2,
               "down": 3}
-game_speed = 0.5
+game_speed = 0.2
 
 #   snake
 snake_starting_length = 3
@@ -36,6 +38,7 @@ board_data = []
 
 #   metrics
 game_over = False
+food_was_eaten = True
 
 #   snake
 snake_position = [{"x": 0, "y": 0}]
@@ -76,8 +79,21 @@ def init_window():
 
 
 def init_game():
+    reset_game_state()
     init_snake()
     init_board()
+    spawn_food()
+
+
+def reset_game_state():
+    global snake_direction
+    global snake_last_direction
+    global board_data
+    global food_was_eaten
+    snake_direction = directions["left"]
+    snake_last_direction = snake_direction
+    board_data = []
+    food_was_eaten = True
 
 
 def init_board():
@@ -91,7 +107,7 @@ def init_board():
         for y in range(board_height):
             # Wände
             if x % (board_width - 1) is 0 or y % (board_height - 1) is 0:
-                tile_data.append(field_types["WALL"])
+                tile_data.append(tile_types["WALL"])
             else:
                 # Boden
                 tile_data.append(0)
@@ -101,6 +117,9 @@ def init_board():
 
 
 def init_snake():
+    global snake_position
+    snake_position = [{"x": 0, "y": 0}]
+
     board_width = board_size["width"]
     board_height = board_size["height"]
 
@@ -132,39 +151,55 @@ def draw(window):
     for x, row in enumerate(board_data):
         for y, tile in enumerate(row):
             color = "NONE"
-            if tile is field_types["HEAD"]:
-                color = red
-            elif tile is field_types["TAIL"]:
+            if tile is tile_types["HEAD"]:
+                color = orange
+            elif tile is tile_types["TAIL"]:
                 color = lime
-            elif tile is field_types["WALL"]:
+            elif tile is tile_types["WALL"]:
                 color = white
+            elif tile is tile_types["FOOD"]:
+                color = red
 
             if color != "NONE":
                 pygame.draw.rect(window, color, [x * pixel_size, y * pixel_size, pixel_size, pixel_size])
 
 
 def game_update():
-    snake_move()
+    snake_update()
+    if food_was_eaten:
+        spawn_food()
 
 
-def snake_move():
+def snake_update():
     clear_snake_from_board()
     global snake_last_direction
 
+    snake_head = snake_position[0]
+
     if snake_direction == directions["left"]:
-        snake_move_to((snake_position[0]["x"] - 1, snake_position[0]["y"]))
+        snake_check_tile((snake_head["x"] - 1, snake_head["y"]))
     elif snake_direction == directions["right"]:
-        snake_move_to((snake_position[0]["x"] + 1, snake_position[0]["y"]))
+        snake_check_tile((snake_head["x"] + 1, snake_head["y"]))
     elif snake_direction == directions["up"]:
-        snake_move_to((snake_position[0]["x"], snake_position[0]["y"] - 1))
+        snake_check_tile((snake_head["x"], snake_head["y"] - 1))
     elif snake_direction == directions["down"]:
-        snake_move_to((snake_position[0]["x"], snake_position[0]["y"] + 1))
+        snake_check_tile((snake_head["x"], snake_head["y"] + 1))
     snake_last_direction = snake_direction
 
     add_snake_to_board()
 
 
-def snake_move_to(tile: (int, int)):
+def snake_check_tile(tile: (int, int)):
+    tile_type = board_data[tile[0]][tile[1]]
+    if tile_type is tile_types["FOOD"]:
+        snake_eat(tile)
+    elif tile_type is tile_types["GROUND"]:
+        snake_move(tile)
+    elif tile_type >= tile_types["TAIL"]:
+        init_game()
+
+
+def snake_move(tile: (int, int)):
     last_element = len(snake_position) - 1
     snake_position[last_element] = {"x": tile[0], "y": tile[1]}
     snake_position.insert(0, snake_position.pop(last_element))
@@ -179,9 +214,9 @@ def add_snake_to_board():
     for i in range(len(snake_position)):
         body_part = snake_position[i]
         if i is 0:
-            board_data[body_part["x"]][body_part["y"]] = field_types["HEAD"]
+            board_data[body_part["x"]][body_part["y"]] = tile_types["HEAD"]
         else:
-            board_data[body_part["x"]][body_part["y"]] = field_types["TAIL"]
+            board_data[body_part["x"]][body_part["y"]] = tile_types["TAIL"]
 
 
 def event_handling():
@@ -204,6 +239,23 @@ def event_handling():
 def log_grid():
     for row in enumerate(board_data):
         print(row)
+
+
+def spawn_food():
+    global food_was_eaten
+    while food_was_eaten:
+        food_x = random.randint(0, board_size["width"] - 1)
+        food_y = random.randint(0, board_size["height"] - 1)
+
+        if board_data[food_x][food_y] is 0:
+            board_data[food_x][food_y] = tile_types["FOOD"]
+            food_was_eaten = False
+
+
+def snake_eat(tile: (int, int)):
+    global food_was_eaten
+    food_was_eaten = True
+    snake_position.insert(0, {"x": tile[0], "y": tile[1]})
 
 
 main()
